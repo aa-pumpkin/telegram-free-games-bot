@@ -15,3 +15,7 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
+      - key: DELIVERY_START_HOUR
+        value: 9
+      - key: DELIVERY_END_HOUR
+        value: 21

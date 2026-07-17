@@ -7,6 +7,7 @@ import { Repository } from './database/repository.js';
 import { startHealthServer } from './health.js';
 import { createHttpClient } from './http.js';
 import { createLogger } from './logger.js';
+import { isDeliveryTime } from './schedule.js';
 import { CheckService } from './services/check-service.js';
 import { EpicSource, GogSource, SteamSource } from './sources/index.js';
 import { registerBotHandlers } from './telegram/bot.js';
@@ -40,29 +41,23 @@ const checks = new CheckService(
 );
 registerBotHandlers(activeBot, config, repository, checks, sender, logger);
 const healthServer = startHealthServer(config.PORT, logger);
-const midnightTask = cron.schedule(
-  '0 0 * * *',
+const shouldDeliverNow = () =>
+  isDeliveryTime(new Date(), config.TIMEZONE, config.DELIVERY_START_HOUR, config.DELIVERY_END_HOUR);
+const hourlyTask = cron.schedule(
+  '0 * * * *',
   () => {
-    void checks.run(false);
+    void checks.run(shouldDeliverNow());
   },
   { timezone: config.TIMEZONE },
 );
-const noonTask = cron.schedule(
-  '0 12 * * *',
-  () => {
-    void checks.run(true);
-  },
-  { timezone: config.TIMEZONE },
-);
-void checks.run(false);
+void checks.run(shouldDeliverNow());
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info({ signal }, 'Завершение приложения');
-  await midnightTask.stop();
-  await noonTask.stop();
+  await hourlyTask.stop();
   await activeBot.stop();
   healthServer.close();
   await database.destroy();
