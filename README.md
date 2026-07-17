@@ -10,13 +10,14 @@ The bot supports Russian and English. Users choose their language when they firs
 
 ## Features
 
-- Checks stores at startup, 00:00, and 12:00
+- Updates the database at startup, 00:00, and 12:00
+- Sends accumulated notifications once a day at 12:00
 - Sends each giveaway only once per user
 - Supports multiple users
 - Stores only the Telegram chat ID and selected language
 - Retries temporary network errors
 
-The first successful store check is saved without sending old giveaways. Only newly discovered games are sent automatically.
+Startup and midnight checks never send messages. New giveaways are accumulated and delivered once a day at 12:00 in the configured `TIMEZONE`, so users are not disturbed at night. The first successful store check is saved without sending old giveaways.
 
 ## Commands
 

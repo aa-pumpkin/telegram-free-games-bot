@@ -40,21 +40,29 @@ const checks = new CheckService(
 );
 registerBotHandlers(activeBot, config, repository, checks, sender, logger);
 const healthServer = startHealthServer(config.PORT, logger);
-const task = cron.schedule(
-  '0 0,12 * * *',
+const midnightTask = cron.schedule(
+  '0 0 * * *',
   () => {
-    void checks.run();
+    void checks.run(false);
   },
   { timezone: config.TIMEZONE },
 );
-void checks.run();
+const noonTask = cron.schedule(
+  '0 12 * * *',
+  () => {
+    void checks.run(true);
+  },
+  { timezone: config.TIMEZONE },
+);
+void checks.run(false);
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info({ signal }, 'Завершение приложения');
-  await task.stop();
+  await midnightTask.stop();
+  await noonTask.stop();
   await activeBot.stop();
   healthServer.close();
   await database.destroy();

@@ -33,7 +33,7 @@ export class CheckService {
     private readonly cacheTtlMs: number,
   ) {}
 
-  async run(): Promise<void> {
+  async run(deliverNotifications: boolean): Promise<void> {
     if (this.running) {
       this.logger.warn('Проверка уже выполняется, новый запуск пропущен');
       return;
@@ -83,9 +83,10 @@ export class CheckService {
           );
         }
       }
-      await this.deliver(await this.repository.notificationEligibleGiveaways());
+      if (deliverNotifications)
+        await this.deliver(await this.repository.notificationEligibleGiveaways());
       this.logger.info(
-        { durationMs: Date.now() - started, newCount, failedCount },
+        { durationMs: Date.now() - started, newCount, failedCount, deliverNotifications },
         'Проверка магазинов завершена',
       );
     } catch (error) {

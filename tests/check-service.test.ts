@@ -46,10 +46,12 @@ describe('CheckService', () => {
     const sendMock = vi.fn().mockResolvedValue({ success: true, blocked: false });
     const mockSender: GiveawaySender = { send: sendMock };
     const service = new CheckService([source], repository, mockSender, logger(), 0, 1000);
-    await service.run();
+    await service.run(false);
     expect(sendMock).not.toHaveBeenCalled();
     games = [game('1'), game('2')];
-    await service.run();
+    await service.run(false);
+    expect(sendMock).not.toHaveBeenCalled();
+    await service.run(true);
     expect(sendMock).toHaveBeenCalledOnce();
   });
 
@@ -65,11 +67,12 @@ describe('CheckService', () => {
       .mockResolvedValueOnce({ success: false, blocked: false, error: 'temporary' })
       .mockResolvedValue({ success: true, blocked: false });
     const service = new CheckService([source], repository, { send: sendMock }, logger(), 0, 1000);
-    await service.run();
+    await service.run(false);
     games = [game('1'), game('2')];
-    await service.run();
-    await service.run();
-    await service.run();
+    await service.run(false);
+    await service.run(true);
+    await service.run(true);
+    await service.run(true);
     expect(sendMock).toHaveBeenCalledTimes(2);
   });
 });
