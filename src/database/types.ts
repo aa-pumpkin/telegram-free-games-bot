@@ -13,6 +13,7 @@ export interface GiveawayTable {
   title: string;
   url: string;
   image_url: string | null;
+  image_urls: string | null;
   description: string | null;
   description_en: string | null;
   description_ru: string | null;

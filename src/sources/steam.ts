@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { Giveaway, GiveawaySource, SourceResult } from '../domain/giveaway.js';
+import {
+  uniqueImageUrls,
+  type Giveaway,
+  type GiveawaySource,
+  type SourceResult,
+} from '../domain/giveaway.js';
 import type { HttpClient } from '../http.js';
 
 const responseSchema = z.object({
@@ -7,6 +12,18 @@ const responseSchema = z.object({
   results_html: z.string(),
   total_count: z.number(),
 });
+const appDetailsSchema = z.record(
+  z.string(),
+  z.object({
+    success: z.boolean(),
+    data: z
+      .object({
+        header_image: z.string().optional(),
+        screenshots: z.array(z.object({ path_full: z.string() })).default([]),
+      })
+      .optional(),
+  }),
+);
 
 function decodeHtml(value: string): string {
   return value
@@ -65,6 +82,15 @@ export function parseSteamResponse(input: unknown, now = new Date()): Giveaway[]
   return giveaways;
 }
 
+export function parseSteamAppDetails(input: unknown, appId: string): string[] {
+  const entry = appDetailsSchema.parse(input)[appId];
+  if (!entry?.success || !entry.data) return [];
+  return uniqueImageUrls(
+    [entry.data.header_image],
+    entry.data.screenshots.map((screenshot) => screenshot.path_full),
+  );
+}
+
 export class SteamSource implements GiveawaySource {
   readonly store = 'steam' as const;
   constructor(
@@ -89,6 +115,24 @@ export class SteamSource implements GiveawaySource {
     const data = await this.http(
       `https://store.steampowered.com/search/results/?${parameters.toString()}`,
     );
-    return { store: this.store, giveaways: parseSteamResponse(data, now), fetchedAt: now };
+    const giveaways = await Promise.all(
+      parseSteamResponse(data, now).map(async (giveaway) => {
+        try {
+          const details = await this.http(
+            `https://store.steampowered.com/api/appdetails?${new URLSearchParams({ appids: giveaway.externalId, cc: this.country.toLowerCase(), l: 'english' }).toString()}`,
+          );
+          const images = uniqueImageUrls(parseSteamAppDetails(details, giveaway.externalId), [
+            giveaway.imageUrl,
+          ]);
+          const primaryImage = images[0];
+          return primaryImage
+            ? { ...giveaway, imageUrl: primaryImage, imageUrls: images }
+            : giveaway;
+        } catch {
+          return giveaway.imageUrl ? { ...giveaway, imageUrls: [giveaway.imageUrl] } : giveaway;
+        }
+      }),
+    );
+    return { store: this.store, giveaways, fetchedAt: now };
   }
 }

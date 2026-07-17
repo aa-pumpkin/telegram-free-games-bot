@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { Giveaway, GiveawaySource, SourceResult } from '../domain/giveaway.js';
+import {
+  uniqueImageUrls,
+  type Giveaway,
+  type GiveawaySource,
+  type SourceResult,
+} from '../domain/giveaway.js';
 import type { HttpClient } from '../http.js';
 
 const promotionSchema = z.object({
@@ -75,6 +80,12 @@ export function parseEpicResponse(input: unknown, now = new Date()): Giveaway[] 
     const imageUrl =
       element.keyImages.find((image) => image.type === 'OfferImageWide')?.url ??
       element.keyImages.find((image) => image.type === 'Thumbnail')?.url;
+    const imageUrls = uniqueImageUrls(
+      [imageUrl],
+      element.keyImages
+        .filter((image) => ['featuredMedia', 'GalleryImage', 'OfferImageTall'].includes(image.type))
+        .map((image) => image.url),
+    );
     const item: Giveaway = {
       externalId: element.id,
       title: element.title,
@@ -87,7 +98,8 @@ export function parseEpicResponse(input: unknown, now = new Date()): Giveaway[] 
       kind: 'keep-forever',
     };
     if (element.description) item.description = element.description;
-    if (imageUrl?.startsWith('http')) item.imageUrl = imageUrl;
+    if (imageUrls[0]) item.imageUrl = imageUrls[0];
+    if (imageUrls.length > 0) item.imageUrls = imageUrls;
     output.push(item);
   }
   return output;

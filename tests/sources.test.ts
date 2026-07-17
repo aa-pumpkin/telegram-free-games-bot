@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseEpicResponse, parseGogResponse, parseSteamResponse } from '../src/sources/index.js';
+import {
+  parseEpicResponse,
+  parseGogResponse,
+  parseSteamAppDetails,
+  parseSteamResponse,
+} from '../src/sources/index.js';
 
 const now = new Date('2026-07-17T12:00:00Z');
 
@@ -19,6 +24,25 @@ describe('store sources', () => {
     ]);
   });
 
+  it('selects up to five high-resolution Steam images', () => {
+    const images = parseSteamAppDetails(
+      {
+        '123': {
+          success: true,
+          data: {
+            header_image: 'https://img.test/header.jpg',
+            screenshots: Array.from({ length: 7 }, (_, index) => ({
+              path_full: `https://img.test/screenshot-${index}.jpg`,
+            })),
+          },
+        },
+      },
+      '123',
+    );
+    expect(images).toHaveLength(5);
+    expect(images[0]).toBe('https://img.test/header.jpg');
+  });
+
   it.each(['Demo', 'DLC', 'Soundtrack', 'Prologue', 'Free Weekend'])(
     'filters Steam %s content',
     (suffix) => {
@@ -36,6 +60,7 @@ describe('store sources', () => {
         originalPrice: 29.99,
         currency: 'EUR',
         title: 'Epic Game',
+        imageUrls: ['https://img.test/epic.jpg', 'https://img.test/gallery.jpg'],
       },
     ]);
   });
@@ -56,7 +81,16 @@ describe('store sources', () => {
     };
     const dlc = { ...gogProduct(), id: '3', productType: 'dlc' };
     expect(parseGogResponse({ products: [product, permanent, dlc] })).toMatchObject([
-      { externalId: 'gog-id', store: 'gog', originalPrice: 9.99, title: 'GOG Game' },
+      {
+        externalId: 'gog-id',
+        store: 'gog',
+        originalPrice: 9.99,
+        title: 'GOG Game',
+        imageUrls: [
+          'https://img.test/gog.jpg',
+          'https://img.test/shot-product_card_v2_mobile_slider_639.jpg',
+        ],
+      },
     ]);
   });
 });
@@ -74,7 +108,10 @@ function epicFixture() {
               offerType: 'BASE_GAME',
               productSlug: null,
               urlSlug: 'fallback',
-              keyImages: [{ type: 'OfferImageWide', url: 'https://img.test/epic.jpg' }],
+              keyImages: [
+                { type: 'OfferImageWide', url: 'https://img.test/epic.jpg' },
+                { type: 'GalleryImage', url: 'https://img.test/gallery.jpg' },
+              ],
               categories: [{ path: 'games' }],
               catalogNs: { mappings: [{ pageSlug: 'epic-game', pageType: 'productHome' }] },
               price: {
@@ -115,6 +152,7 @@ function gogProduct() {
     coverHorizontal: 'https://img.test/gog.jpg',
     storeLink: 'https://www.gog.com/en/game/gog_game',
     tags: [],
+    screenshots: ['https://img.test/shot-{formatter}.jpg'],
     price: {
       finalMoney: { amount: '0.00', currency: 'EUR' },
       baseMoney: { amount: '9.99', currency: 'EUR' },

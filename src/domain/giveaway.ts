@@ -9,6 +9,7 @@ export interface Giveaway {
   store: Store;
   url: string;
   imageUrl?: string;
+  imageUrls?: string[];
   description?: string;
   descriptions?: Partial<Record<Language, string>>;
   originalPrice?: number;
@@ -48,6 +49,16 @@ export function deduplicateGiveaways(giveaways: Giveaway[]): Giveaway[] {
     if (!unique.has(key)) unique.set(key, giveaway);
   }
   return [...unique.values()];
+}
+
+export function uniqueImageUrls(...groups: Array<Array<string | undefined>>): string[] {
+  return [
+    ...new Set(
+      groups
+        .flat()
+        .filter((url): url is string => typeof url === 'string' && /^https?:\/\//i.test(url)),
+    ),
+  ].slice(0, 5);
 }
 
 export const storeNames: Record<Store, string> = {

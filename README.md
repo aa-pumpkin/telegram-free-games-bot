@@ -12,6 +12,7 @@ The bot supports Russian and English. Users choose their language when they firs
 
 - Updates the database at startup, 00:00, and 12:00
 - Sends accumulated notifications once a day at 12:00
+- Sends up to five official store images per giveaway
 - Sends each giveaway only once per user
 - Supports multiple users
 - Stores only the Telegram chat ID and selected language

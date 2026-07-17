@@ -17,6 +17,19 @@ function toDomain(row: Selectable<GiveawayTable>): StoredGiveaway {
     kind: 'keep-forever',
   };
   if (row.image_url) giveaway.imageUrl = row.image_url;
+  if (row.image_urls) {
+    try {
+      const parsed: unknown = JSON.parse(row.image_urls);
+      if (Array.isArray(parsed)) {
+        const urls = parsed.filter(
+          (value): value is string => typeof value === 'string' && /^https?:\/\//i.test(value),
+        );
+        if (urls.length > 0) giveaway.imageUrls = urls.slice(0, 5);
+      }
+    } catch {
+      // Keep the legacy single image when an old value cannot be parsed.
+    }
+  }
   if (row.description) giveaway.description = row.description;
   const descriptions: Partial<Record<Language, string>> = {};
   if (row.description_en) descriptions.en = row.description_en;
@@ -142,6 +155,7 @@ export class Repository {
           title: giveaway.title,
           url: giveaway.url,
           image_url: giveaway.imageUrl ?? null,
+          image_urls: giveaway.imageUrls ? JSON.stringify(giveaway.imageUrls.slice(0, 5)) : null,
           description: giveaway.description ?? null,
           description_en: giveaway.descriptions?.en ?? giveaway.description ?? null,
           description_ru: giveaway.descriptions?.ru ?? null,
@@ -163,6 +177,7 @@ export class Repository {
               title: values.title,
               url: values.url,
               image_url: values.image_url,
+              image_urls: values.image_urls,
               description: values.description,
               description_en: values.description_en,
               description_ru: values.description_ru,

@@ -20,6 +20,7 @@ export async function migrateToLatest(db: Kysely<DatabaseSchema>): Promise<void>
     .addColumn('title', 'varchar(512)', (column) => column.notNull())
     .addColumn('url', 'text', (column) => column.notNull())
     .addColumn('image_url', 'text')
+    .addColumn('image_urls', 'text')
     .addColumn('description', 'text')
     .addColumn('description_en', 'text')
     .addColumn('description_ru', 'text')
@@ -63,6 +64,9 @@ export async function migrateToLatest(db: Kysely<DatabaseSchema>): Promise<void>
     await db.schema.alterTable('subscribers').addColumn('language', 'varchar(2)').execute();
   }
   const giveaways = tables.find((table) => table.name === 'giveaways');
+  if (giveaways && !giveaways.columns.some((column) => column.name === 'image_urls')) {
+    await db.schema.alterTable('giveaways').addColumn('image_urls', 'text').execute();
+  }
   if (giveaways && !giveaways.columns.some((column) => column.name === 'description_en')) {
     await db.schema.alterTable('giveaways').addColumn('description_en', 'text').execute();
   }

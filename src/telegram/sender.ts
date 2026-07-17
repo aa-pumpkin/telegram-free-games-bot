@@ -1,5 +1,5 @@
 import { GrammyError, type Bot } from 'grammy';
-import type { Giveaway, Language } from '../domain/giveaway.js';
+import { uniqueImageUrls, type Giveaway, type Language } from '../domain/giveaway.js';
 import type { Logger } from '../logger.js';
 import { formatGiveaway } from './format.js';
 import { t } from './i18n.js';
@@ -31,19 +31,27 @@ export class TelegramSender implements GiveawaySender {
   async send(chatId: string, giveaway: Giveaway, language: Language): Promise<SendResult> {
     const keyboard = { inline_keyboard: [[{ text: t(language).claim, url: giveaway.url }]] };
     const caption = formatGiveaway(giveaway, this.timezone, language, 1000);
-    if (giveaway.imageUrl) {
+    const images = uniqueImageUrls(giveaway.imageUrls ?? [], [giveaway.imageUrl]);
+    const failedImages = new Set<string>();
+    for (const image of images) {
       try {
-        await this.bot.api.sendPhoto(chatId, giveaway.imageUrl, {
+        await this.bot.api.sendPhoto(chatId, image, {
           caption,
           parse_mode: 'HTML',
           reply_markup: keyboard,
         });
+        await this.sendAdditionalImages(
+          chatId,
+          images.filter((candidate) => candidate !== image && !failedImages.has(candidate)),
+          giveaway,
+        );
         return { success: true, blocked: false };
       } catch (error) {
         if (blockedByUser(error)) return { success: false, blocked: true, error: errorText(error) };
+        failedImages.add(image);
         this.logger.warn(
           { chatId, store: giveaway.store, error: errorText(error) },
-          'Не удалось отправить изображение, отправляется текст',
+          'Не удалось отправить изображение, пробуется следующее',
         );
       }
     }
@@ -60,6 +68,29 @@ export class TelegramSender implements GiveawaySender {
       return { success: true, blocked: false };
     } catch (error) {
       return { success: false, blocked: blockedByUser(error), error: errorText(error) };
+    }
+  }
+
+  private async sendAdditionalImages(
+    chatId: string,
+    images: string[],
+    giveaway: Giveaway,
+  ): Promise<void> {
+    if (images.length === 0) return;
+    try {
+      if (images.length === 1) {
+        await this.bot.api.sendPhoto(chatId, images[0]!);
+      } else {
+        await this.bot.api.sendMediaGroup(
+          chatId,
+          images.map((media) => ({ type: 'photo' as const, media })),
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        { chatId, store: giveaway.store, error: errorText(error) },
+        'Основное сообщение отправлено, но дополнительные изображения недоступны',
+      );
     }
   }
 }

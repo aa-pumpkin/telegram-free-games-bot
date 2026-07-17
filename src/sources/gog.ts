@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { Giveaway, GiveawaySource, SourceResult } from '../domain/giveaway.js';
+import {
+  uniqueImageUrls,
+  type Giveaway,
+  type GiveawaySource,
+  type SourceResult,
+} from '../domain/giveaway.js';
 import type { HttpClient } from '../http.js';
 
 const productSchema = z.object({
@@ -8,6 +13,7 @@ const productSchema = z.object({
   productType: z.string(),
   title: z.string(),
   coverHorizontal: z.string().optional(),
+  screenshots: z.array(z.string()).default([]),
   storeLink: z.string().url(),
   tags: z.array(z.object({ name: z.string(), slug: z.string() })).default([]),
   price: z.object({
@@ -37,7 +43,14 @@ export function parseGogResponse(input: unknown): Giveaway[] {
       currency: product.price.baseMoney.currency,
       kind: 'keep-forever',
     };
-    if (product.coverHorizontal?.startsWith('http')) item.imageUrl = product.coverHorizontal;
+    const imageUrls = uniqueImageUrls(
+      [product.coverHorizontal],
+      product.screenshots.map((url) =>
+        url.replace('{formatter}', 'product_card_v2_mobile_slider_639'),
+      ),
+    );
+    if (imageUrls[0]) item.imageUrl = imageUrls[0];
+    if (imageUrls.length > 0) item.imageUrls = imageUrls;
     output.push(item);
   }
   return output;
