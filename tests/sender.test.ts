@@ -4,9 +4,11 @@ import { createLogger } from '../src/logger.js';
 import { TelegramSender } from '../src/telegram/sender.js';
 
 describe('TelegramSender', () => {
-  it('sends the main image with text and up to four extra images as an album', async () => {
+  it('sends up to five images as one album with text below it', async () => {
     const sendPhoto = vi.fn().mockResolvedValue({});
-    const sendMediaGroup = vi.fn().mockResolvedValue([]);
+    const sendMediaGroup = vi
+      .fn<(chatId: string, media: Array<Record<string, unknown>>) => Promise<Array<unknown>>>()
+      .mockResolvedValue([]);
     const sendMessage = vi.fn().mockResolvedValue({});
     const bot = { api: { sendPhoto, sendMediaGroup, sendMessage } } as unknown as Bot;
     const sender = new TelegramSender(
@@ -28,14 +30,16 @@ describe('TelegramSender', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(sendPhoto).toHaveBeenCalledOnce();
-    expect(sendPhoto).toHaveBeenCalledWith(
-      '42',
-      'https://img.test/0.jpg',
-      expect.objectContaining({ parse_mode: 'HTML' }),
-    );
+    expect(sendPhoto).not.toHaveBeenCalled();
     expect(sendMediaGroup).toHaveBeenCalledOnce();
-    expect(sendMediaGroup.mock.calls[0]?.[1]).toHaveLength(4);
+    expect(sendMediaGroup.mock.calls[0]?.[1]).toHaveLength(5);
+    expect(sendMediaGroup.mock.calls[0]?.[1]?.[0]).toEqual(
+      expect.objectContaining({
+        media: 'https://img.test/0.jpg',
+        parse_mode: 'HTML',
+        caption: expect.stringContaining('Claim game') as string,
+      }),
+    );
     expect(sendMessage).not.toHaveBeenCalled();
   });
 });
