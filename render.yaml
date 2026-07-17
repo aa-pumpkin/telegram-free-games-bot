@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: telegram-free-games-bot
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: TIMEZONE
+        value: Europe/Berlin
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
