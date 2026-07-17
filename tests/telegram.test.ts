@@ -19,7 +19,6 @@ describe('Telegram formatting', () => {
       },
       'Europe/Berlin',
       'ru',
-      true,
       1000,
     );
     expect(text).toContain('&lt;Control&gt;');
@@ -43,9 +42,10 @@ describe('Telegram formatting', () => {
       },
       'Europe/Berlin',
       'en',
-      true,
     );
-    expect(text).toContain('New free game');
+    expect(text.startsWith('<b>Control</b>')).toBe(true);
+    expect(text).not.toContain('🎮');
+    expect(text).not.toContain('Free game');
     expect(text).toContain('Store: Epic Games Store');
     expect(text).toContain('English description');
     expect(text).not.toContain('Русское описание');

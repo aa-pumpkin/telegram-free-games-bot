@@ -10,12 +10,7 @@ export interface SendResult {
   error?: string;
 }
 export interface GiveawaySender {
-  send(
-    chatId: string,
-    giveaway: Giveaway,
-    language: Language,
-    notification?: boolean,
-  ): Promise<SendResult>;
+  send(chatId: string, giveaway: Giveaway, language: Language): Promise<SendResult>;
 }
 
 function blockedByUser(error: unknown): boolean {
@@ -33,14 +28,9 @@ export class TelegramSender implements GiveawaySender {
     private readonly logger: Logger,
   ) {}
 
-  async send(
-    chatId: string,
-    giveaway: Giveaway,
-    language: Language,
-    notification = true,
-  ): Promise<SendResult> {
+  async send(chatId: string, giveaway: Giveaway, language: Language): Promise<SendResult> {
     const keyboard = { inline_keyboard: [[{ text: t(language).claim, url: giveaway.url }]] };
-    const caption = formatGiveaway(giveaway, this.timezone, language, notification, 1000);
+    const caption = formatGiveaway(giveaway, this.timezone, language, 1000);
     if (giveaway.imageUrl) {
       try {
         await this.bot.api.sendPhoto(chatId, giveaway.imageUrl, {
@@ -60,7 +50,7 @@ export class TelegramSender implements GiveawaySender {
     try {
       await this.bot.api.sendMessage(
         chatId,
-        formatGiveaway(giveaway, this.timezone, language, notification, 3900),
+        formatGiveaway(giveaway, this.timezone, language, 3900),
         {
           parse_mode: 'HTML',
           reply_markup: keyboard,

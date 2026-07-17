@@ -39,14 +39,10 @@ export function formatGiveaway(
   giveaway: Giveaway,
   timezone: string,
   language: Language,
-  notification = true,
   maxLength = 1000,
 ): string {
   const text = t(language);
-  const heading = notification ? `🎮 <b>${text.newGame}</b>` : `🎮 <b>${text.freeGame}</b>`;
   const lines = [
-    heading,
-    '',
     `<b>${escapeHtml(giveaway.title)}</b>`,
     '',
     `${text.store}: ${storeNames[giveaway.store]}`,

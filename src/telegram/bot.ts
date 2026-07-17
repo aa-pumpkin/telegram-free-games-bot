@@ -100,7 +100,7 @@ export function registerBotHandlers(
       return;
     }
     for (const giveaway of current.giveaways) {
-      await sender.send(String(context.chat.id), giveaway, language, false);
+      await sender.send(String(context.chat.id), giveaway, language);
       await pause(config.SEND_DELAY_MS);
     }
     if (current.failedStores.length > 0)
