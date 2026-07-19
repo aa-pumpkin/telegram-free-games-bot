@@ -238,6 +238,16 @@ export class Repository {
     return rows.map(toDomain);
   }
 
+  async findGiveaway(store: Store, externalId: string): Promise<StoredGiveaway | undefined> {
+    const row = await this.db
+      .selectFrom('giveaways')
+      .selectAll()
+      .where('store', '=', store)
+      .where('external_id', '=', externalId)
+      .executeTakeFirst();
+    return row ? toDomain(row) : undefined;
+  }
+
   async notificationEligibleGiveaways(now = new Date()): Promise<StoredGiveaway[]> {
     const rows = await this.db
       .selectFrom('giveaways')

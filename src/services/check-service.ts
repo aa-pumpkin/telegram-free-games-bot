@@ -10,7 +10,7 @@ import type { Repository, StoredGiveaway } from '../database/repository.js';
 import type { GiveawaySender } from '../telegram/sender.js';
 
 export interface CurrentGames {
-  giveaways: Giveaway[];
+  giveaways: StoredGiveaway[];
   failedStores: Store[];
   fromCache: boolean;
 }
@@ -106,7 +106,11 @@ export class CheckService {
       return cached && now.getTime() - cached.fetchedAt.getTime() < this.cacheTtlMs;
     });
     if (!forceRefresh && allFresh) {
-      return { giveaways: this.filteredCache(now), failedStores: [], fromCache: true };
+      return {
+        giveaways: await this.storedCache(now),
+        failedStores: [],
+        fromCache: true,
+      };
     }
     const outcomes = await Promise.allSettled(this.sources.map((source) => source.fetch(now)));
     const failedStores: Store[] = [];
@@ -114,8 +118,12 @@ export class CheckService {
       const source = this.sources[index];
       if (!source) continue;
       if (outcome.status === 'fulfilled') {
+        const valid = deduplicateGiveaways(outcome.value.giveaways).filter((item) =>
+          isEligibleGiveaway(item, now),
+        );
+        await this.repository.syncStore(source.store, valid, outcome.value.fetchedAt);
         this.cache.set(source.store, {
-          giveaways: outcome.value.giveaways,
+          giveaways: valid,
           fetchedAt: outcome.value.fetchedAt,
         });
       } else {
@@ -123,7 +131,20 @@ export class CheckService {
         this.logger.warn({ store: source.store }, 'Не удалось обновить источник по команде /games');
       }
     }
-    return { giveaways: this.filteredCache(now), failedStores, fromCache: false };
+    return {
+      giveaways: await this.storedCache(now),
+      failedStores,
+      fromCache: false,
+    };
+  }
+
+  private async storedCache(now: Date): Promise<StoredGiveaway[]> {
+    const stored = await Promise.all(
+      this.filteredCache(now).map((giveaway) =>
+        this.repository.findGiveaway(giveaway.store, giveaway.externalId),
+      ),
+    );
+    return stored.filter((giveaway): giveaway is StoredGiveaway => giveaway !== undefined);
   }
 
   private filteredCache(now: Date): Giveaway[] {

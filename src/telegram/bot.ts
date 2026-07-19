@@ -37,6 +37,30 @@ async function requireLanguage(
   return language;
 }
 
+async function requireGroupAdministrator(
+  context: Context,
+  repository: Repository,
+  callback = false,
+): Promise<boolean> {
+  if (!context.chat || context.chat.type === 'private') return true;
+  const language = await repository.getLanguage(String(context.chat.id));
+  const message = language
+    ? t(language).groupAdminsOnly
+    : 'Только администраторы группы / Group administrators only.';
+  if (context.message?.sender_chat?.id === context.chat.id) return true;
+  const userId = context.from?.id;
+  if (userId !== undefined) {
+    const administrators = await context.api.getChatAdministrators(context.chat.id);
+    if (administrators.some((member) => member.user.id === userId)) return true;
+  }
+  if (callback) {
+    await context.answerCallbackQuery({ text: message, show_alert: true });
+  } else {
+    await context.reply(message);
+  }
+  return false;
+}
+
 export function registerBotHandlers(
   bot: Bot,
   config: Config,
@@ -46,6 +70,7 @@ export function registerBotHandlers(
   logger: Logger,
 ): void {
   bot.command('start', async (context) => {
+    if (!(await requireGroupAdministrator(context, repository))) return;
     const chatId = String(context.chat.id);
     const language = await repository.getLanguage(chatId);
     if (!language) {
@@ -58,6 +83,7 @@ export function registerBotHandlers(
 
   bot.callbackQuery(/^language:(ru|en):(start|change)$/, async (context) => {
     if (!context.chat) return;
+    if (!(await requireGroupAdministrator(context, repository, true))) return;
     const language = context.match[1] as Language;
     const mode = context.match[2] as 'start' | 'change';
     await repository.setLanguage(String(context.chat.id), language, mode === 'start');
@@ -67,9 +93,13 @@ export function registerBotHandlers(
     );
   });
 
-  bot.command(['language', 'lang'], async (context) => askForLanguage(context, 'change'));
+  bot.command(['language', 'lang'], async (context) => {
+    if (await requireGroupAdministrator(context, repository))
+      await askForLanguage(context, 'change');
+  });
 
   bot.command('stop', async (context) => {
+    if (!(await requireGroupAdministrator(context, repository))) return;
     const language = await requireLanguage(context, repository);
     if (!language) return;
     await repository.setSubscription(String(context.chat.id), false);
@@ -100,7 +130,9 @@ export function registerBotHandlers(
       return;
     }
     for (const giveaway of current.giveaways) {
-      await sender.send(String(context.chat.id), giveaway, language);
+      const chatId = String(context.chat.id);
+      const result = await sender.send(chatId, giveaway, language);
+      await repository.recordDelivery(giveaway.id, chatId, result.success, result.error);
       await pause(config.SEND_DELAY_MS);
     }
     if (current.failedStores.length > 0)

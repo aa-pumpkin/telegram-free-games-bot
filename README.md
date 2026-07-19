@@ -1,118 +1,46 @@
 # Free Games Telegram Bot
 
-A Telegram bot that notifies users about limited-time free PC games from:
+Telegram bot for Steam, Epic Games Store, and GOG giveaways.
 
-- Steam
-- Epic Games Store
-- GOG
-
-The bot supports Russian and English. Users choose their language when they first run `/start` and can change it later with `/language`.
+[Open the bot](https://t.me/tg_notifications_games_bot)
 
 ## Features
 
-- Checks all stores every hour
-- Sends new giveaways immediately between 09:00 and 21:00
-- Sends up to five official store images per giveaway
-- Sends each giveaway only once per user
-- Supports multiple users
-- Stores only the Telegram chat ID and selected language
-- Retries temporary network errors
-
-The bot keeps checking stores at night, but it does not send messages outside the delivery window. Night-time giveaways are accumulated and delivered at the first check from 09:00. The window uses the configured `TIMEZONE` and can be changed with `DELIVERY_START_HOUR` and `DELIVERY_END_HOUR`. The first successful store check is saved without sending old giveaways.
+- Checks stores every hour and sends each giveaway once
+- Delivers notifications between 09:00 and 21:00
+- Supports English and Russian
+- Works in private chats and groups
+- Sends up to five store images with each game
 
 ## Commands
 
-- `/start` — choose a language and enable notifications
-- `/stop` — disable notifications
+- `/start` — enable notifications
 - `/games` — show current giveaways
-- `/status` — show notification status
+- `/stop` — disable notifications
 - `/language` — change language
-- `/help` — show available commands
+- `/status` — check subscription status
 
-## Requirements
+In groups, only administrators can change the language or subscription settings.
 
-- Node.js 22 LTS
-- npm
-- A Telegram bot token from [@BotFather](https://t.me/BotFather)
+## Run locally
 
-## Quick Start
+Requires Node.js 22 and a bot token from [@BotFather](https://t.me/BotFather).
 
 ```bash
-git clone <repository-url>
-cd tg-games
+git clone https://github.com/aa-pumpkin/telegram-free-games-bot.git
+cd telegram-free-games-bot
 npm install
 cp .env.example .env
 ```
 
-Run the database migration and start the bot:
+Add your token to `.env`, then run:
 
 ```bash
-npm run db:migrate
 npm run dev
 ```
 
-Open your bot in Telegram and send `/start`.
+The project supports SQLite locally and PostgreSQL in production. It is ready for Docker deployment and exposes `/health` for health checks.
 
-## Production
+## License
 
-```bash
-npm run build
-npm start
-```
-
-## Tests
-
-```bash
-npm run format:check
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-## Docker
-
-```bash
-docker compose up --build -d
-docker compose logs -f bot
-docker compose down
-```
-
-The Compose configuration uses a persistent volume for the local SQLite database.
-
-Health endpoint:
-
-```text
-http://localhost:3000/health
-```
-
-## PostgreSQL
-
-For hosting platforms with an ephemeral filesystem, use PostgreSQL instead of SQLite:
-
-```env
-DATABASE_URL=postgresql://user:password@host/database?sslmode=require
-```
-
-Migrations run automatically when the application starts.
-
-## Data Sources
-
-- Steam: official Steam Store search endpoint
-- Epic Games Store: official storefront promotions endpoint
-- GOG: official catalog endpoint
-
-Steam and GOG do not always provide an exact giveaway end date. In that case, a giveaway remains active until it disappears from the next successful store check.
-
-Epic descriptions are requested in English and Russian. If a Russian description is unavailable, the bot omits it instead of mixing languages.
-
-## Privacy
-
-The bot stores only:
-
-- Telegram chat ID
-- Selected bot language
-- Subscription status and timestamps
-- Giveaway and delivery records
-
-It does not store names, usernames, phone numbers, profile data, message text, or Telegram profile language.
+MIT

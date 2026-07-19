@@ -5,6 +5,7 @@ const messages = {
   ru: {
     languagePrompt: 'Выберите язык бота:',
     languageChanged: 'Язык изменён на русский.',
+    groupAdminsOnly: 'Управлять подпиской и языком бота в группе могут только администраторы.',
     started:
       'Готово! Автоматические уведомления включены. Используйте /games, чтобы увидеть текущие раздачи.',
     stopped: 'Автоматические уведомления отключены. Команда /games по-прежнему доступна.',
@@ -30,6 +31,7 @@ const messages = {
   en: {
     languagePrompt: 'Choose the bot language:',
     languageChanged: 'Language changed to English.',
+    groupAdminsOnly: 'Only group administrators can manage the bot subscription and language.',
     started: 'Done! Automatic notifications are enabled. Use /games to see current giveaways.',
     stopped: 'Automatic notifications are disabled. You can still use /games.',
     statusOn: 'Automatic notifications are enabled.',

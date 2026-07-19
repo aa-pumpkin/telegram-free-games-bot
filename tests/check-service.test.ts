@@ -75,6 +75,27 @@ describe('CheckService', () => {
     await service.run(true);
     expect(sendMock).toHaveBeenCalledTimes(2);
   });
+
+  it('does not notify again after a new giveaway was shown by /games', async () => {
+    await repository.setLanguage('42', 'en', true);
+    let games = [game('1')];
+    const source: GiveawaySource = {
+      store: 'steam',
+      fetch: () => Promise.resolve({ store: 'steam', fetchedAt: new Date(), giveaways: games }),
+    };
+    const sendMock = vi.fn().mockResolvedValue({ success: true, blocked: false });
+    const service = new CheckService([source], repository, { send: sendMock }, logger(), 0, 1000);
+
+    await service.run(false);
+    games = [game('1'), game('2')];
+    const current = await service.getCurrent(true);
+    const manuallyShown = current.giveaways.find((giveaway) => giveaway.externalId === '2');
+    expect(manuallyShown).toBeDefined();
+    await repository.recordDelivery(manuallyShown!.id, '42', true);
+
+    await service.run(true);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
 });
 
 function game(id = '1') {
