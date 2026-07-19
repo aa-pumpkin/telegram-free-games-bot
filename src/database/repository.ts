@@ -274,6 +274,47 @@ export class Repository {
     return row?.status === 'sent';
   }
 
+  async claimDelivery(giveawayId: string, chatId: string, now = new Date()): Promise<boolean> {
+    const claimedAt = now.toISOString();
+    const staleBefore = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+    const reclaimed = await this.db
+      .updateTable('deliveries')
+      .set({ status: 'pending', sent_at: claimedAt, last_error: null })
+      .where('giveaway_id', '=', giveawayId)
+      .where('chat_id', '=', chatId)
+      .where((expression) =>
+        expression.or([
+          expression('status', '=', 'failed'),
+          expression.and([
+            expression('status', '=', 'pending'),
+            expression.or([
+              expression('sent_at', 'is', null),
+              expression('sent_at', '<', staleBefore),
+            ]),
+          ]),
+        ]),
+      )
+      .returning('id')
+      .executeTakeFirst();
+    if (reclaimed) return true;
+
+    const inserted = await this.db
+      .insertInto('deliveries')
+      .values({
+        id: randomUUID(),
+        giveaway_id: giveawayId,
+        chat_id: chatId,
+        status: 'pending',
+        sent_at: claimedAt,
+        attempts: 0,
+        last_error: null,
+      })
+      .onConflict((conflict) => conflict.columns(['giveaway_id', 'chat_id']).doNothing())
+      .returning('id')
+      .executeTakeFirst();
+    return inserted !== undefined;
+  }
+
   async recordDelivery(
     giveawayId: string,
     chatId: string,

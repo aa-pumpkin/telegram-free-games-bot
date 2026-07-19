@@ -160,7 +160,7 @@ export class CheckService {
       for (const subscriber of subscribers) {
         const { chatId, language } = subscriber;
         try {
-          if (await this.repository.wasDelivered(giveaway.id, chatId)) continue;
+          if (!(await this.repository.claimDelivery(giveaway.id, chatId))) continue;
           const result = await this.sender.send(chatId, giveaway, language);
           await this.repository.recordDelivery(giveaway.id, chatId, result.success, result.error);
           if (result.blocked) {

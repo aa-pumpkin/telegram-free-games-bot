@@ -54,6 +54,22 @@ describe('Repository', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.attempts).toBe(2);
   });
+
+  it('allows only one process to claim the same delivery', async () => {
+    await repository.setLanguage('42', 'en', true);
+    await repository.syncStore('steam', [], new Date());
+    const synced = await repository.syncStore('steam', [game('1')], new Date());
+    const id = synced.fresh[0]!.id;
+
+    const claims = await Promise.all([
+      repository.claimDelivery(id, '42'),
+      repository.claimDelivery(id, '42'),
+    ]);
+
+    expect(claims.filter(Boolean)).toHaveLength(1);
+    await repository.recordDelivery(id, '42', true);
+    expect(await repository.claimDelivery(id, '42')).toBe(false);
+  });
 });
 
 function game(id: string) {

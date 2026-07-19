@@ -11,6 +11,7 @@ import { isDeliveryTime } from './schedule.js';
 import { CheckService } from './services/check-service.js';
 import { EpicSource, GogSource, SteamSource } from './sources/index.js';
 import { registerBotHandlers } from './telegram/bot.js';
+import { keepBotRunning, retryTelegramSetup, safeTelegramError } from './telegram/runtime.js';
 import { TelegramSender } from './telegram/sender.js';
 
 const config = loadConfig();
@@ -41,6 +42,7 @@ const checks = new CheckService(
 );
 registerBotHandlers(activeBot, config, repository, checks, sender, logger);
 const healthServer = startHealthServer(config.PORT, logger);
+const runtimeController = new AbortController();
 const shouldDeliverNow = () =>
   isDeliveryTime(new Date(), config.TIMEZONE, config.DELIVERY_START_HOUR, config.DELIVERY_END_HOUR);
 const hourlyTask = cron.schedule(
@@ -52,23 +54,6 @@ const hourlyTask = cron.schedule(
 );
 void checks.run(shouldDeliverNow());
 
-let shuttingDown = false;
-async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  logger.info({ signal }, 'Завершение приложения');
-  await hourlyTask.stop();
-  await activeBot.stop();
-  healthServer.close();
-  await database.destroy();
-}
-process.once('SIGINT', () => {
-  void shutdown('SIGINT');
-});
-process.once('SIGTERM', () => {
-  void shutdown('SIGTERM');
-});
-
 const englishCommands = [
   { command: 'start', description: 'Enable notifications' },
   { command: 'stop', description: 'Disable notifications' },
@@ -77,19 +62,57 @@ const englishCommands = [
   { command: 'language', description: 'Change language' },
   { command: 'help', description: 'Command list' },
 ];
-await activeBot.api.setMyCommands(englishCommands);
-await activeBot.api.setMyCommands(englishCommands, { language_code: 'en' });
-await activeBot.api.setMyCommands(
-  [
-    { command: 'start', description: 'Включить уведомления' },
-    { command: 'stop', description: 'Отключить уведомления' },
-    { command: 'games', description: 'Текущие бесплатные игры' },
-    { command: 'status', description: 'Состояние подписки' },
-    { command: 'language', description: 'Сменить язык' },
-    { command: 'help', description: 'Список команд' },
-  ],
-  { language_code: 'ru' },
+const commandSetupTask = retryTelegramSetup(
+  async () => {
+    await activeBot.api.setMyCommands(englishCommands);
+    await activeBot.api.setMyCommands(englishCommands, { language_code: 'en' });
+    await activeBot.api.setMyCommands(
+      [
+        { command: 'start', description: 'Включить уведомления' },
+        { command: 'stop', description: 'Отключить уведомления' },
+        { command: 'games', description: 'Текущие бесплатные игры' },
+        { command: 'status', description: 'Состояние подписки' },
+        { command: 'language', description: 'Сменить язык' },
+        { command: 'help', description: 'Список команд' },
+      ],
+      { language_code: 'ru' },
+    );
+  },
+  runtimeController.signal,
+  logger,
 );
-await activeBot.start({
-  onStart: (information) => logger.info({ username: information.username }, 'Telegram-бот запущен'),
+const pollingTask = keepBotRunning(activeBot, runtimeController.signal, logger);
+void pollingTask.catch((error) => {
+  logger.fatal(
+    { error: safeTelegramError(error) },
+    'Telegram polling остановлен из-за постоянной ошибки',
+  );
+  process.exit(1);
+});
+
+let shuttingDown = false;
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info({ signal }, 'Завершение приложения');
+  runtimeController.abort();
+  const stopOperations: Array<Promise<void>> = [Promise.resolve(hourlyTask.stop())];
+  if (activeBot.isRunning()) stopOperations.push(activeBot.stop());
+  const stopResults = await Promise.allSettled(stopOperations);
+  for (const result of stopResults) {
+    if (result.status === 'rejected')
+      logger.warn(
+        { error: safeTelegramError(result.reason) },
+        'Ошибка при остановке фоновой задачи',
+      );
+  }
+  await Promise.allSettled([pollingTask, commandSetupTask]);
+  healthServer.close();
+  await database.destroy();
+}
+process.once('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+process.once('SIGTERM', () => {
+  void shutdown('SIGTERM');
 });
