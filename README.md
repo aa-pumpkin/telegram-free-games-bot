@@ -2,7 +2,17 @@
 
 Telegram bot for Steam, Epic Games Store, and GOG giveaways.
 
-[Open the bot](https://t.me/tg_notifications_games_bot)
+<p align="center">
+  <a href="https://t.me/tg_notifications_games_bot">
+    <img src="https://img.shields.io/badge/Open_in_Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Open in Telegram">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://t.me/tg_notifications_games_bot">
+    <img src="docs/telegram-qr.png" width="180" alt="QR code for @tg_notifications_games_bot">
+  </a>
+</p>
 
 ## Features
 
