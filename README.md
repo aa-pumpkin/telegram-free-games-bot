@@ -16,6 +16,20 @@ Telegram bot for Steam, Epic Games Store, and GOG giveaways.
 - Works in private chats and groups
 - Sends up to five store images with each game
 
+## Stack
+
+TypeScript, Node.js, grammY, Kysely (SQLite / PostgreSQL), Zod, Pino, Vitest, ESLint, Docker
+
+## How it works
+
+```text
+Steam ─┐
+Epic  ─┼──► sources ──► normalize and deduplicate ──► database ──► Telegram
+GOG   ─┘
+```
+
+Each store has its own source module that turns the store's response into one common giveaway format. Deliveries are recorded per subscriber, so restarts and overlapping checks do not send a giveaway twice. If one store is unavailable, the others are still processed.
+
 ## Commands
 
 - `/start` — enable notifications
@@ -41,6 +55,14 @@ Add your token to `.env`, then run:
 
 ```bash
 npm run dev
+```
+
+Checks:
+
+```bash
+npm test
+npm run lint
+npm run typecheck
 ```
 
 The project supports SQLite locally and PostgreSQL in production. It is ready for Docker deployment and exposes `/health` for health checks.
